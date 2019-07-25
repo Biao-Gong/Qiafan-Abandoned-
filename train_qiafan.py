@@ -118,7 +118,6 @@ if __name__ == '__main__':
     writer = SummaryWriter('runs/'+time_TrainStart+'_'+str(os.getpid()))
 
     ######################################
-
     # dataset
     # data_set = {
     #     x: torchvision.datasets.VOCDetection(cfg['dataset_guipang'], year='2007', image_set=x, download=False, transform=None, target_transform=None, transforms=None)

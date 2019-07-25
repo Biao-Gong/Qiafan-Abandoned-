@@ -10,6 +10,7 @@ from torchvision import transforms
 from itertools import groupby
 
 
+
 def get_immediate_subdirectories(a_dir):
     return [name for name in os.listdir(a_dir)
             if os.path.isdir(os.path.join(a_dir, name))]
@@ -126,24 +127,19 @@ class guipang(data.Dataset):
     def __init__(self, cfg, part='train'):
         self.part = part
         self.root = cfg
-        self.data = []
-        type_index = 0
-        for type in os.listdir(self.pcroot):
-            type_index = self.class_order.index(type)
-            type_root = os.path.join(os.path.join(self.pcroot, type), set)
-            for filename in os.listdir(type_root):
-                if filename.endswith('.npy'):
-                    self.data.append(
-                        (os.path.join(type_root, filename), type_index))
-            type_index += 1
-
-    def __getitem__(self, i):
-        path, type = self.data[i]
-        raw_pos = np.load(path)
-        pos = torch.from_numpy(raw_pos[:1024]).float()
-        fea = torch.ones(1024, 1)
-        target = torch.tensor(type, dtype=torch.long)
-        return (pos, fea), target
+        # self.data = []
+        # type_index = 0
+        # for type in os.listdir(self.pcroot):
+        #     type_index = self.class_order.index(type)
+        #     type_root = os.path.join(os.path.join(self.pcroot, type), set)
+        #     for filename in os.listdir(type_root):
+        #         if filename.endswith('.npy'):
+        #             self.data.append(
+        #                 (os.path.join(type_root, filename), type_index))
+        #     type_index += 1
+        self.images = [os.path.join(image_dir, x + ".jpg") for x in file_names]
+        self.annotations = [os.path.join(annotation_dir, x + ".xml") for x in file_names]
+        assert (len(self.images) == len(self.annotations))
 
     def __getitem__(self, index):
         """
