@@ -2,6 +2,14 @@ import numpy as np
 import os
 import torch
 import torch.utils.data as data
+import sys
+import collections
+
+if sys.version_info[0] == 2:
+    import xml.etree.cElementTree as ET
+else:
+    import xml.etree.ElementTree as ET
+
 
 import glob
 import random
@@ -127,6 +135,8 @@ class guipang(data.Dataset):
     def __init__(self, cfg, part='train'):
         self.part = part
         self.root = cfg
+        self.images=[]
+        self.annotations=[]
         # self.data = []
         # type_index = 0
         # for type in os.listdir(self.pcroot):
@@ -137,8 +147,10 @@ class guipang(data.Dataset):
         #             self.data.append(
         #                 (os.path.join(type_root, filename), type_index))
         #     type_index += 1
-        self.images = [os.path.join(image_dir, x + ".jpg") for x in file_names]
-        self.annotations = [os.path.join(annotation_dir, x + ".xml") for x in file_names]
+        for filename in os.listdir(os.path.join(self.root,self.part)):
+            if os.path.splitext(filename)[1]=='.jpg':
+                self.images.append(filename)
+                self.annotations.append(os.path.splitext(filename)[0]+'.xml')
         assert (len(self.images) == len(self.annotations))
 
     def __getitem__(self, index):

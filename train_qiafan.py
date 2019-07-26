@@ -16,15 +16,13 @@ import time
 import shutil
 from tensorboardX import SummaryWriter
 
-
 def train_guipang(model, criterion, optimizer, scheduler, cfg):
 
-    best_acc = 0.0
+    # best_acc = 0.0
     best_model_wts = copy.deepcopy(model.state_dict())
 
     for epoch in range(1, cfg['max_epoch']):
         for phrase in ['train', 'val']:
-
             nowepochiter = (epoch-1)*len(data_loader[phrase])
             if phrase == 'train':
                 scheduler.step()
@@ -35,14 +33,14 @@ def train_guipang(model, criterion, optimizer, scheduler, cfg):
             ##################################################
             running_loss = 0.0
             running_corrects = 0
-            ft_all, lbl_all = None, None
+            predic, gt = None, None
             ##################################################
 
-            for i, (centers, corners, normals, neighbor_index, targets) in enumerate(data_loader[phrase]):
+            for i, (images, annotations) in enumerate(data_loader[phrase]):
 
                 optimizer.zero_grad()
 
-                centers = torch.cuda.FloatTensor(centers.cuda())
+                images = torch.cuda.FloatTensor(centers.cuda())
                 corners = torch.cuda.FloatTensor(corners.cuda())
                 normals = torch.cuda.FloatTensor(normals.cuda())
                 neighbor_index = torch.cuda.LongTensor(neighbor_index.cuda())
@@ -118,11 +116,6 @@ if __name__ == '__main__':
     writer = SummaryWriter('runs/'+time_TrainStart+'_'+str(os.getpid()))
 
     ######################################
-    # dataset
-    # data_set = {
-    #     x: torchvision.datasets.VOCDetection(cfg['dataset_guipang'], year='2007', image_set=x, download=False, transform=None, target_transform=None, transforms=None)
-    #     for x in ['train', 'val']
-    # }
     data_set = {
         x: guipang(cfg=cfg['dataset_guipang'], part=x) for x in ['train', 'val']
     }
