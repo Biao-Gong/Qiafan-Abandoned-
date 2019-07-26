@@ -16,11 +16,81 @@ import shutil
 from tensorboardX import SummaryWriter
 
 
-def mapcal(epoch_map,outputs,targets,bar_scor,bar_iou):
+
+def iou_pytorch(outputs: torch.Tensor, labels: torch.Tensor):
+    # You can comment out this line if you are passing tensors of equal shape
+    # But if you are passing output from UNet or something it will most probably
+    # be with the BATCH x 1 x H x W shape
+    outputs = outputs.squeeze(1)  # BATCH x 1 x H x W => BATCH x H x W
+    
+    intersection = (outputs & labels).float().sum((1, 2))  # Will be zero if Truth=0 or Prediction=0
+    union = (outputs | labels).float().sum((1, 2))         # Will be zzero if both are 0
+    
+    iou = (intersection + SMOOTH) / (union + SMOOTH)  # We smooth our devision to avoid 0/0
+    
+    thresholded = torch.clamp(20 * (iou - 0.5), 0, 10).ceil() / 10  # This is equal to comparing with thresolds
+    
+    return thresholded  # Or thresholded.mean() if you are interested in average across the batch
+    
+
+
+def bbox_iou(box1, box2, x1y1x2y2=True):
+    if not x1y1x2y2:
+        # Transform from center and width to exact coordinates
+        b1_x1, b1_x2 = box1[:, 0] - box1[:, 2] / 2, box1[:, 0] + box1[:, 2] / 2
+        b1_y1, b1_y2 = box1[:, 1] - box1[:, 3] / 2, box1[:, 1] + box1[:, 3] / 2
+        b2_x1, b2_x2 = box2[:, 0] - box2[:, 2] / 2, box2[:, 0] + box2[:, 2] / 2
+        b2_y1, b2_y2 = box2[:, 1] - box2[:, 3] / 2, box2[:, 1] + box2[:, 3] / 2
+    else:
+        # Get the coordinates of bounding boxes
+        b1_x1, b1_y1, b1_x2, b1_y2 = box1[:,0], box1[:,1], box1[:,2], box1[:,3]
+        b2_x1, b2_y1, b2_x2, b2_y2 = box2[:,0], box2[:,1], box2[:,2], box2[:,3]
+
+    # get the corrdinates of the intersection rectangle
+    inter_rect_x1 =  torch.max(b1_x1, b2_x1)
+    inter_rect_y1 =  torch.max(b1_y1, b2_y1)
+    inter_rect_x2 =  torch.min(b1_x2, b2_x2)
+    inter_rect_y2 =  torch.min(b1_y2, b2_y2)
+    # Intersection area
+    inter_area =    torch.clamp(inter_rect_x2 - inter_rect_x1 + 1, min=0) * \
+                    torch.clamp(inter_rect_y2 - inter_rect_y1 + 1, min=0)
+    # Union Area
+    b1_area = (b1_x2 - b1_x1 + 1) * (b1_y2 - b1_y1 + 1)
+    b2_area = (b2_x2 - b2_x1 + 1) * (b2_y2 - b2_y1 + 1)
+
+    iou = inter_area / (b1_area + b2_area - inter_area + 1e-16)
+
+    return iou
+
+
+
+def mapcal_guipang(epoch_map,outputs,targets,bar_scor,bar_iou):
 # [{'boxes': tensor([], device='cuda:0', size=(0, 4)), 'labels': tensor([], device='cuda:0', dtype=torch.int64), 'scores': tensor([], device='cuda:0'), 'masks': tensor([], device='cuda:0', size=(0, 1, 4096, 5500))}, 
 # {'boxes': tensor([], device='cuda:0', size=(0, 4)), 'labels': tensor([], device='cuda:0', dtype=torch.int64), 'scores': tensor([], device='cuda:0'), 'masks': tensor([], device='cuda:0', size=(0, 1, 4096, 5500
 # {'boxes': tensor([], device='cuda:0', size=(0, 4)), 'labels': tensor([], device='cuda:0', dtype=torch.int64), 'scores': tensor([], device='cuda:0'), 'masks': tensor([], device='cuda:0', size=(0, 1, 4096, 5500))}, {'boxes': tensor([], device='cuda:0', size=(0, 4)), 'labels': tensor([], device='cuda:0', dtype=torch.int64), 'scores': tensor([], device='cuda:0'), 'masks': tensor([], device='cuda:0', size=(0, 1, 4096, 5500))}, 
 # {'boxes': tensor([], device='cuda:0', size=(0, 4)), 'labels': tensor([], device='cuda:0', dtype=torch.int64), 'scores': tensor([], device='cuda:0'), 'masks': tensor([], device='cuda:0', size=(0, 1, 4096, 5500))}]
+    for output,target in outputs,targets:
+        boxes=output['boxes']
+        scores=output['scores']
+        boxes_gt=target['boxes']
+
+        sorted_scores=torch.sort(scores)[0]
+        sorted_boxes=boxes[torch.sort(scores)[1]]
+
+        sorted_bar_boxes=sorted_boxes[torch.gt(sorted_scores,bar_scor)]
+
+
+
+
+
+
+
+
+
+
+
+
+    
     return 0.0
 
 
@@ -30,6 +100,7 @@ def train_guipang(model, criterion, optimizer, scheduler, cfg):
     best_model_wts = copy.deepcopy(model.state_dict())
 
     for epoch in range(1, cfg['max_epoch']):
+        print('epoch: ',epoch)
         for phrase in ['train', 'val']:
             nowepochiter = (epoch-1)*int(data_set[phrase].__len__()/cfg['batch_size'])
             if phrase == 'train':
@@ -42,7 +113,7 @@ def train_guipang(model, criterion, optimizer, scheduler, cfg):
             # predic, gt = None, None
             epoch_map=0.0
             ##################################################
-
+            #             
             for i in range(int(data_set[phrase].__len__()/cfg['batch_size'])):
 
                 optimizer.zero_grad()
@@ -53,6 +124,7 @@ def train_guipang(model, criterion, optimizer, scheduler, cfg):
                     data_set_return = data_set[phrase].__getitem__(
                         i*cfg['batch_size']+ii)
                     images.append(data_set_return[0].cuda())
+                    
                     targets.append({
                         'boxes': torch.cuda.FloatTensor([[int(data_set_return[1]['annotation']['object']['bndbox']['xmin']),
                                                           int(
@@ -65,8 +137,8 @@ def train_guipang(model, criterion, optimizer, scheduler, cfg):
                     })
 
                 with torch.set_grad_enabled(phrase == 'train'):
-                    outputs = model(images, targets)
                     if phrase == 'train':
+                        outputs = model(images, targets)
                         loss = outputs['loss_classifier'] + \
                             outputs['loss_box_reg'] + \
                             outputs['loss_objectness'] + \
@@ -75,7 +147,8 @@ def train_guipang(model, criterion, optimizer, scheduler, cfg):
                         optimizer.step()
                         writer.add_scalar('guipangtrain/loss',loss.item(), i+nowepochiter)                         
                     else:
-                        epoch_map=mapcal(epoch_map,outputs,targets,bar_scor,bar_iou)
+                        outputs = model(images)
+                        epoch_map=mapcal_guipang(epoch_map,outputs,targets,cfg['bar_scor'],cfg['bar_iou'])
                         
 
             if phrase == 'val':
@@ -86,6 +159,7 @@ def train_guipang(model, criterion, optimizer, scheduler, cfg):
                 if epoch % cfg['checkpoint'] == 0:
                     torch.save(copy.deepcopy(model.module.state_dict()),
                                the_ckpt_root+'{}.pkl'.format(epoch))
+
                 
     return best_model_wts
 
@@ -98,11 +172,13 @@ if __name__ == '__main__':
         'lr': 0.001,
         'momentum': 0.9,
         'weight_decay': 0.0005,
-        'batch_size': 5,
+        'batch_size': 1,
         'max_epoch': 100,
         'checkpoint': 20,
         'milestones': [30, 50],
         'gamma': 0.1,
+        'bar_scor':0.7,
+        'bar_iou':0.5,
         'dataset_guipang': '/repository/gong/qiafan/guipangdata/',
         'dataset_qiafan': '/repository/gong/qiafan/dataset/',
         'cuda_devices': '6',
@@ -128,6 +204,8 @@ if __name__ == '__main__':
     #                        num_workers=4, shuffle=True, pin_memory=False)
     #     for x in ['train', 'val']
     # }
+    assert cfg['batch_size'] <= data_set['train'].__len__()
+    assert cfg['batch_size'] <= data_set['val'].__len__()    
     ######################################
 
     model = torchvision.models.detection.maskrcnn_resnet50_fpn()
