@@ -197,6 +197,72 @@ class guipang(data.Dataset):
         return voc_dict
 
 
+class guipang1(data.Dataset):
+    def __init__(self, cfg, part='train'):
+        self.part = part
+        self.root = cfg
+        self.images=[]
+        self.annotations=[]
+        self.transforms = transforms.Compose([
+            # transforms.Resize(self.img_size),
+            transforms.ToTensor()
+        ])
+        # self.data = []
+        # type_index = 0
+        # for type in os.listdir(self.pcroot):
+        #     type_index = self.class_order.index(type)
+        #     type_root = os.path.join(os.path.join(self.pcroot, type), set)
+        #     for filename in os.listdir(type_root):
+        #         if filename.endswith('.npy'):
+        #             self.data.append(
+        #                 (os.path.join(type_root, filename), type_index))
+        #     type_index += 1
+        for filename in os.listdir(os.path.join(self.root,self.part)):
+            if os.path.splitext(filename)[1]=='.jpg':
+                self.images.append(os.path.join(self.root,self.part,filename))
+                self.annotations.append(os.path.join(self.root,self.part,os.path.splitext(filename)[0]+'.xml'))
+        assert (len(self.images) == len(self.annotations))
+
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
+
+        Returns:
+            tuple: (image, target) where target is a dictionary of the XML tree.
+        """
+        img = Image.open(self.images[index]).convert('RGB')
+        target = self.parse_voc_xml(
+            ET.parse(self.annotations[index]).getroot())
+
+        if self.transforms is not None:
+            img = self.transforms(img)
+
+        return img, target
+
+    def __len__(self):
+        return len(self.images)
+
+    def parse_voc_xml(self, node):
+        voc_dict = {}
+        children = list(node)
+        if children:
+            def_dic = collections.defaultdict(list)
+            for dc in map(self.parse_voc_xml, children):
+                for ind, v in dc.items():
+                    def_dic[ind].append(v)
+            voc_dict = {
+                node.tag:
+                    {ind: v[0] if len(v) == 1 else v
+                     for ind, v in def_dic.items()}
+            }
+        if node.text:
+            text = node.text.strip()
+            if not children:
+                voc_dict[node.tag] = text
+        return voc_dict
+
+
 class qiafan(data.Dataset):
     def __init__(self, cfg, set='train'):
         self.set = set
