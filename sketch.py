@@ -19,7 +19,7 @@ import time
 import shutil
 from tensorboardX import SummaryWriter
 import pdb
-dataset_guipang= '/repository/gong/qiafan/guipangdata/'
+dataset_guipang = '/repository/gong/qiafan/guipangdata/'
 # config
 cfg = {
     'lr': 0.001,
@@ -35,6 +35,8 @@ cfg = {
     'cuda_devices': '6,7',
     'ckpt_root': '/repository/gong/qiafan/'
 }
+
+
 # print(os.path.join(dataset_guipang,'train')
 # for filename in os.listdir(os.path.join(dataset_guipang,'train')):
 #     if os.path.splitext(filename)[1]=='.jpg':
@@ -47,19 +49,19 @@ cfg = {
 #         images.append(filename)
 #         annotations.append(os.path.splitext(filename)[0]+'.xml')
 
-    # elif os.path.splitext(filename)[1]=='.xml':
-    #     annotations.append(filename)
+# elif os.path.splitext(filename)[1]=='.xml':
+#     annotations.append(filename)
 data_set = {
     x: guipang(cfg=cfg['dataset_guipang'], part=x) for x in ['train', 'val']
 }
 # data_set = {
 #     x: dataset(cfg=cfg['dataset_qiafan'], part=x) for x in ['train', 'val']
 # }
-data_loader = {
-    x: data.DataLoader(data_set[x], batch_size=cfg['batch_size'],
-                        num_workers=4, shuffle=True, pin_memory=False)
-    for x in ['train', 'val']
-}
+# data_loader = {
+#     x: data.DataLoader(data_set[x], batch_size=cfg['batch_size'],
+#                         num_workers=4, shuffle=True, pin_memory=False)
+#     for x in ['train', 'val']
+# }
 # a=[1,2]
 # print(a)
 # pdb.set_trace()
@@ -67,28 +69,55 @@ data_loader = {
 os.environ['CUDA_VISIBLE_DEVICES'] = cfg['cuda_devices']
 
 
-model = torchvision.models.detection.maskrcnn_resnet50_fpn()
-model.cuda()
-model = nn.DataParallel(model)
-model.train()
+# model = torchvision.models.detection.maskrcnn_resnet50_fpn()
+# model.cuda()
+# model = nn.DataParallel(model)
+# model.train()
 
-for i, (images, annotations) in enumerate(data_loader['train']):
+
+phrase = 'train'
+for i in range(int(data_set[phrase].__len__()/cfg['batch_size'])):
+    images = []
+    targets = []
+    for ii in range(cfg['batch_size']):
+        data_set_return = data_set[phrase].__getitem__(i*cfg['batch_size']+ii)
+        images.append(data_set_return[0].cuda())
+        targets.append({
+            'boxes': torch.cuda.FloatTensor([[int(data_set_return[1]['annotation']['object']['bndbox']['xmin']),
+                                              int(data_set_return[1]['annotation']['object']['bndbox']['ymin']),
+                                              int(data_set_return[1]['annotation']['object']['bndbox']['xmax']),
+                                              int(data_set_return[1]['annotation']['object']['bndbox']['ymax'])]]),
+            'labels': torch.cuda.LongTensor([1])
+        })
+        # print(ii)
+        print(data_set_return[0].size()[1])
+        pdb.set_trace()
+    print(images)
+    print(targets)
+    # print(data_set[phrase].__getitem__(i))
+    # print(cfg['batch_size'])
+    # print(i)
     # print(images)
-    # # print(annotations['annotation']['object']['name'])
-    # # annotations=torch.FloatTensor(list(map(int,annotations['annotation']['object']['name'])))
-    # # print(annotations['annotation']['object']['bndbox']['xmin'])
+    # print(annotations)
+
+    # print(annotations['annotation']['object']['name'])
+    # annotations=torch.FloatTensor(list(map(int,annotations['annotation']['object']['name'])))
+    # print(annotations['annotation']['object']['bndbox']['xmin'])
     # print(annotations['annotation']['object']['bndbox'])
 
     # print(torch.tensor([list(map(int,annotations['annotation']['object']['bndbox']['xmin'])),
     #     list(map(int,annotations['annotation']['object']['bndbox']['ymin']))]).t())
     # pdb.set_trace()
-    images = torch.cuda.FloatTensor(images.cuda())
-    boxes = torch.cuda.FloatTensor([list(map(int,annotations['annotation']['object']['bndbox']['xmin'])),
-                                    list(map(int,annotations['annotation']['object']['bndbox']['ymin'])),
-                                    list(map(int,annotations['annotation']['object']['bndbox']['xmax'])),
-                                    list(map(int,annotations['annotation']['object']['bndbox']['ymax']))]).t()
-    labels = torch.cuda.LongTensor(
-        list(map(int, annotations['annotation']['object']['name'])))
+
+    # images = torch.cuda.FloatTensor(images.cuda())
+    # targets = []
+
+    # boxes = torch.cuda.FloatTensor([list(map(int,annotations['annotation']['object']['bndbox']['xmin'])),
+    #                                 list(map(int,annotations['annotation']['object']['bndbox']['ymin'])),
+    #                                 list(map(int,annotations['annotation']['object']['bndbox']['xmax'])),
+    #                                 list(map(int,annotations['annotation']['object']['bndbox']['ymax']))]).t()
+    # labels = torch.cuda.LongTensor(
+    #     list(map(int, annotations['annotation']['object']['name'])))
 
     with torch.set_grad_enabled(phrase == 'train'):
         outputs = model(images,boxes=boxes,labels=labels)
