@@ -54,7 +54,8 @@ class guipang(data.Dataset):
         if self.transforms is not None:
             img = self.transforms(img)
 
-        return img, target
+        sample = {'img': img, 'annot': target}
+        return sample
 
     def __len__(self):
         return len(self.images)

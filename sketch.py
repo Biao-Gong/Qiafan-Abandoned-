@@ -1,20 +1,18 @@
-# import os
-# import torch.utils.data as data
-# import copy
-# import os
-# import sys
-# import json
+import os
+import copy
+import os
+import sys
+import json
 import torch
-# import torch.nn as nn
-# import torch.optim as optim
-# import torch.utils.data as data
-# import torchvision
-# from config import get_train_config
-# from models.MVHNet import *
-# from utils import append_feature, calculate_map
-# import time
-# import shutil
-# from tensorboardX import SummaryWriter
+import torch.nn as nn
+import torch.optim as optim
+import torch.utils.data as data
+import torchvision
+import time
+import shutil
+from tensorboardX import SummaryWriter
+from data import guipang
+import numpy as np
 import pdb
 dataset_guipang = '/repository/gong/qiafan/guipangdata/'
 # config
@@ -33,44 +31,98 @@ cfg = {
     'ckpt_root': '/repository/gong/qiafan/'
 }
 
+coco_annotations= [{"segmentation": [[419.71,443.39,432.63,379.41,475.08,346.19,503.38,333.88,527.99,325.27,557.53,325.88,574.14,331.42,572.91,304.35,576.6,290.2,588.29,285.28,604.28,285.89,608.59,302.5,610.44,324.65,605.51,330.19,600.59,348.03,610.44,359.11,616.59,372.64,615.97,380.64,605.51,385.56,614.74,393.56,625.82,397.87,639.35,415.71,635.05,422.48,631.02,440.97,638.92,433.07,640.0,453.0,418.61,453.0],[338.86,451.49,344.39,390.69,339.65,372.53,354.65,353.58,356.23,337.78,357.02,319.62,353.87,306.2,353.87,293.56,359.39,285.67,363.34,263.56,338.07,253.29,330.18,257.24,326.23,259.61,315.17,250.13,304.91,250.13,303.33,259.61,313.59,262.77,295.43,282.51,274.9,313.3,264.64,319.62,259.11,340.94,257.53,356.73,256.74,364.63,259.9,382.79,241.74,391.48,227.53,404.9,219.63,417.54,229.1,420.69,218.84,437.28,218.84,453.0]],
+ "area": 41612.6938,"iscrowd": 0,"image_id": 139099,"bbox": [218.84,250.13,421.16,202.87],"category_id": 4,"id": 148439}]
 
-def bbox_iou(box1, box2, x1y1x2y2=True):
-    """
-    Returns the IoU of two bounding boxes
-    """
-    if not x1y1x2y2:
-        # Transform from center and width to exact coordinates
-        b1_x1, b1_x2 = box1[:, 0] - box1[:, 2] / 2, box1[:, 0] + box1[:, 2] / 2
-        b1_y1, b1_y2 = box1[:, 1] - box1[:, 3] / 2, box1[:, 1] + box1[:, 3] / 2
-        b2_x1, b2_x2 = box2[:, 0] - box2[:, 2] / 2, box2[:, 0] + box2[:, 2] / 2
-        b2_y1, b2_y2 = box2[:, 1] - box2[:, 3] / 2, box2[:, 1] + box2[:, 3] / 2
-    else:
-        # Get the coordinates of bounding boxes
-        b1_x1, b1_y1, b1_x2, b1_y2 = box1[:,0], box1[:,1], box1[:,2], box1[:,3]
-        b2_x1, b2_y1, b2_x2, b2_y2 = box2[:,0], box2[:,1], box2[:,2], box2[:,3]
+print(len(coco_annotations[0]))
 
-    # get the corrdinates of the intersection rectangle
-    inter_rect_x1 =  torch.max(b1_x1, b2_x1)
-    inter_rect_y1 =  torch.max(b1_y1, b2_y1)
-    inter_rect_x2 =  torch.min(b1_x2, b2_x2)
-    inter_rect_y2 =  torch.min(b1_y2, b2_y2)
-    # Intersection area
-    inter_area =    torch.clamp(inter_rect_x2 - inter_rect_x1 + 1, min=0) * \
-                    torch.clamp(inter_rect_y2 - inter_rect_y1 + 1, min=0)
-    # Union Area
-    b1_area = (b1_x2 - b1_x1 + 1) * (b1_y2 - b1_y1 + 1)
-    b2_area = (b2_x2 - b2_x1 + 1) * (b2_y2 - b2_y1 + 1)
+aa={}
+aa['1']=2
+print(aa)
+pdb.set_trace()
+data_set = {
+    x: guipang(cfg=cfg['dataset_guipang'], part=x) for x in ['train', 'val']
+}
+data_loader = {
+    x: data.DataLoader(data_set[x], batch_size=cfg['batch_size'],
+                        num_workers=4, shuffle=True, pin_memory=False)
+    for x in ['train', 'val']
+}
 
-    iou = inter_area / (b1_area + b2_area - inter_area + 1e-16)
+annotations     = np.zeros((0, 5))
+for idx, a in enumerate(coco_annotations):
 
-    return iou
+    # some annotations have basically no width / height, skip them
+    if a['bbox'][2] < 1 or a['bbox'][3] < 1:
+        continue
 
-x=torch.tensor([1.0,2.0,0])
-y=torch.tensor([[1.0,1.0,1.0,1.0],[2.0,2.0,5.0,5.0],[2.0,2.0,3.0,3.0]])
-z=torch.tensor([[3.0,3.0,6.0,6.0]])
+    annotation        = np.zeros((1, 5))
+    annotation[0, :4] = a['bbox']
+    annotation[0, 4]  = a['category_id']
+    annotations       = np.append(annotations, annotation, axis=0)
+
+# transform from [x, y, w, h] to [x1, y1, x2, y2]
+annotations[:, 2] = annotations[:, 0] + annotations[:, 2]
+annotations[:, 3] = annotations[:, 1] + annotations[:, 3]
+
+print(annotations.shape)
+
+print(annotations)
+
+# for idx, a in enumerate(aa):
+#     print(idx)
+#     print(a)
 
 
-print(y[torch.sort(bbox_iou(y,z),descending=True)[1]])
+# for i, data in enumerate(data_loader['train']):
+#     print(data)
+#     print(data['img'].size())
+#     pdb.set_trace()
+
+# def bbox_iou(box1, box2, x1y1x2y2=True):
+#     """
+#     Returns the IoU of two bounding boxes
+#     """
+#     if not x1y1x2y2:
+#         # Transform from center and width to exact coordinates
+#         b1_x1, b1_x2 = box1[:, 0] - box1[:, 2] / 2, box1[:, 0] + box1[:, 2] / 2
+#         b1_y1, b1_y2 = box1[:, 1] - box1[:, 3] / 2, box1[:, 1] + box1[:, 3] / 2
+#         b2_x1, b2_x2 = box2[:, 0] - box2[:, 2] / 2, box2[:, 0] + box2[:, 2] / 2
+#         b2_y1, b2_y2 = box2[:, 1] - box2[:, 3] / 2, box2[:, 1] + box2[:, 3] / 2
+#     else:
+#         # Get the coordinates of bounding boxes
+#         b1_x1, b1_y1, b1_x2, b1_y2 = box1[:,0], box1[:,1], box1[:,2], box1[:,3]
+#         b2_x1, b2_y1, b2_x2, b2_y2 = box2[:,0], box2[:,1], box2[:,2], box2[:,3]
+
+#     # get the corrdinates of the intersection rectangle
+#     inter_rect_x1 =  torch.max(b1_x1, b2_x1)
+#     inter_rect_y1 =  torch.max(b1_y1, b2_y1)
+#     inter_rect_x2 =  torch.min(b1_x2, b2_x2)
+#     inter_rect_y2 =  torch.min(b1_y2, b2_y2)
+#     # Intersection area
+#     inter_area =    torch.clamp(inter_rect_x2 - inter_rect_x1 + 1, min=0) * \
+#                     torch.clamp(inter_rect_y2 - inter_rect_y1 + 1, min=0)
+#     # Union Area
+#     b1_area = (b1_x2 - b1_x1 + 1) * (b1_y2 - b1_y1 + 1)
+#     b2_area = (b2_x2 - b2_x1 + 1) * (b2_y2 - b2_y1 + 1)
+
+#     iou = inter_area / (b1_area + b2_area - inter_area + 1e-16)
+
+#     return iou
+
+# x=torch.tensor([1.0,2.0,0])
+# y=torch.tensor([[1.0,1.0,1.0,1.0],[2.0,2.0,5.0,5.0],[2.0,2.0,3.0,3.0]])
+# z=torch.tensor([[3.0,3.0,6.0,6.0]])
+# zz=torch.tensor([[3.0,3.0,6.0]])
+
+# a=[1]
+# b=[2]
+# for i,j in zip(a,b):
+#     print(i,j)
+
+# print(y[torch.ge(bbox_iou(y,z),0.01)].size(0))
+
+# print(y[torch.ge(zz[0],6)])
 
 # def bbox_iou(box1, box2):
 #     """
@@ -193,9 +245,7 @@ print(y[torch.sort(bbox_iou(y,z),descending=True)[1]])
 
 # elif os.path.splitext(filename)[1]=='.xml':
 #     annotations.append(filename)
-# data_set = {
-#     x: guipang(cfg=cfg['dataset_guipang'], part=x) for x in ['train', 'val']
-# }
+
 # data_set = {
 #     x: dataset(cfg=cfg['dataset_qiafan'], part=x) for x in ['train', 'val']
 # }
