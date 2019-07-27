@@ -17,21 +17,6 @@ from tensorboardX import SummaryWriter
 
 
 
-def iou_pytorch(outputs: torch.Tensor, labels: torch.Tensor):
-    # You can comment out this line if you are passing tensors of equal shape
-    # But if you are passing output from UNet or something it will most probably
-    # be with the BATCH x 1 x H x W shape
-    outputs = outputs.squeeze(1)  # BATCH x 1 x H x W => BATCH x H x W
-    
-    intersection = (outputs & labels).float().sum((1, 2))  # Will be zero if Truth=0 or Prediction=0
-    union = (outputs | labels).float().sum((1, 2))         # Will be zzero if both are 0
-    
-    iou = (intersection + SMOOTH) / (union + SMOOTH)  # We smooth our devision to avoid 0/0
-    
-    thresholded = torch.clamp(20 * (iou - 0.5), 0, 10).ceil() / 10  # This is equal to comparing with thresolds
-    
-    return thresholded  # Or thresholded.mean() if you are interested in average across the batch
-    
 
 
 def bbox_iou(box1, box2, x1y1x2y2=True):
@@ -69,28 +54,26 @@ def mapcal_guipang(epoch_map,outputs,targets,bar_scor,bar_iou):
 # {'boxes': tensor([], device='cuda:0', size=(0, 4)), 'labels': tensor([], device='cuda:0', dtype=torch.int64), 'scores': tensor([], device='cuda:0'), 'masks': tensor([], device='cuda:0', size=(0, 1, 4096, 5500
 # {'boxes': tensor([], device='cuda:0', size=(0, 4)), 'labels': tensor([], device='cuda:0', dtype=torch.int64), 'scores': tensor([], device='cuda:0'), 'masks': tensor([], device='cuda:0', size=(0, 1, 4096, 5500))}, {'boxes': tensor([], device='cuda:0', size=(0, 4)), 'labels': tensor([], device='cuda:0', dtype=torch.int64), 'scores': tensor([], device='cuda:0'), 'masks': tensor([], device='cuda:0', size=(0, 1, 4096, 5500))}, 
 # {'boxes': tensor([], device='cuda:0', size=(0, 4)), 'labels': tensor([], device='cuda:0', dtype=torch.int64), 'scores': tensor([], device='cuda:0'), 'masks': tensor([], device='cuda:0', size=(0, 1, 4096, 5500))}]
+    p=0.0
     for output,target in outputs,targets:
         boxes=output['boxes']
         scores=output['scores']
         boxes_gt=target['boxes']
 
-        sorted_scores=torch.sort(scores)[0]
-        sorted_boxes=boxes[torch.sort(scores)[1]]
+        # sorted_scores=torch.sort(scores)[0]
+        # sorted_boxes=boxes[torch.sort(scores)[1]]
 
-        sorted_bar_boxes=sorted_boxes[torch.gt(sorted_scores,bar_scor)]
+        # sorted_bar_boxes=sorted_boxes[torch.gt(sorted_scores,bar_scor)]
 
+        bar_boxes=boxes[torch.gt(scores,bar_scor)]
+        bar_scores=scores[torch.gt(scores,bar_scor)]
 
-
-
-
-
-
-
+        sorted_bar_boxes=bar_boxes[torch.sort(bar_scores,descending=True)[1]]
+        bbox_iou(sorted_bar_boxes,boxes_gt)
 
 
 
 
-    
     return 0.0
 
 
