@@ -1,19 +1,19 @@
-import os
-import copy
-import os
-import sys
-import json
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.utils.data as data
-import torchvision
-import time
-import shutil
-from tensorboardX import SummaryWriter
-from data import guipang
-import numpy as np
-import pdb
+# import os
+# import copy
+# import os
+# import sys
+# import json
+# import torch
+# import torch.nn as nn
+# import torch.optim as optim
+# import torch.utils.data as data
+# import torchvision
+# import time
+# import shutil
+# from tensorboardX import SummaryWriter
+# from data import guipang
+# import numpy as np
+# import pdb
 dataset_guipang = '/repository/gong/qiafan/guipangdata/'
 # config
 cfg = {
@@ -34,40 +34,43 @@ cfg = {
 coco_annotations= [{"segmentation": [[419.71,443.39,432.63,379.41,475.08,346.19,503.38,333.88,527.99,325.27,557.53,325.88,574.14,331.42,572.91,304.35,576.6,290.2,588.29,285.28,604.28,285.89,608.59,302.5,610.44,324.65,605.51,330.19,600.59,348.03,610.44,359.11,616.59,372.64,615.97,380.64,605.51,385.56,614.74,393.56,625.82,397.87,639.35,415.71,635.05,422.48,631.02,440.97,638.92,433.07,640.0,453.0,418.61,453.0],[338.86,451.49,344.39,390.69,339.65,372.53,354.65,353.58,356.23,337.78,357.02,319.62,353.87,306.2,353.87,293.56,359.39,285.67,363.34,263.56,338.07,253.29,330.18,257.24,326.23,259.61,315.17,250.13,304.91,250.13,303.33,259.61,313.59,262.77,295.43,282.51,274.9,313.3,264.64,319.62,259.11,340.94,257.53,356.73,256.74,364.63,259.9,382.79,241.74,391.48,227.53,404.9,219.63,417.54,229.1,420.69,218.84,437.28,218.84,453.0]],
  "area": 41612.6938,"iscrowd": 0,"image_id": 139099,"bbox": [218.84,250.13,421.16,202.87],"category_id": 4,"id": 148439}]
 
-print(len(coco_annotations[0]))
+# print(len(coco_annotations[0]))
 
-aa={}
-aa['1']=2
-print(aa)
-pdb.set_trace()
-data_set = {
-    x: guipang(cfg=cfg['dataset_guipang'], part=x) for x in ['train', 'val']
-}
-data_loader = {
-    x: data.DataLoader(data_set[x], batch_size=cfg['batch_size'],
-                        num_workers=4, shuffle=True, pin_memory=False)
-    for x in ['train', 'val']
-}
+# aa={}
+# aa['1']=2
+# print(aa)
 
-annotations     = np.zeros((0, 5))
-for idx, a in enumerate(coco_annotations):
+nms=[]
+nms = [cat['name'] for cat in cats]
 
-    # some annotations have basically no width / height, skip them
-    if a['bbox'][2] < 1 or a['bbox'][3] < 1:
-        continue
+# data_set = {
+#     x: guipang(cfg=cfg['dataset_guipang'], part=x) for x in ['train', 'val']
+# }
+# data_loader = {
+#     x: data.DataLoader(data_set[x], batch_size=cfg['batch_size'],
+#                         num_workers=4, shuffle=True, pin_memory=False)
+#     for x in ['train', 'val']
+# }
 
-    annotation        = np.zeros((1, 5))
-    annotation[0, :4] = a['bbox']
-    annotation[0, 4]  = a['category_id']
-    annotations       = np.append(annotations, annotation, axis=0)
+# annotations     = np.zeros((0, 5))
+# for idx, a in enumerate(coco_annotations):
 
-# transform from [x, y, w, h] to [x1, y1, x2, y2]
-annotations[:, 2] = annotations[:, 0] + annotations[:, 2]
-annotations[:, 3] = annotations[:, 1] + annotations[:, 3]
+#     # some annotations have basically no width / height, skip them
+#     if a['bbox'][2] < 1 or a['bbox'][3] < 1:
+#         continue
 
-print(annotations.shape)
+#     annotation        = np.zeros((1, 5))
+#     annotation[0, :4] = a['bbox']
+#     annotation[0, 4]  = a['category_id']
+#     annotations       = np.append(annotations, annotation, axis=0)
 
-print(annotations)
+# # transform from [x, y, w, h] to [x1, y1, x2, y2]
+# annotations[:, 2] = annotations[:, 0] + annotations[:, 2]
+# annotations[:, 3] = annotations[:, 1] + annotations[:, 3]
+
+# print(annotations.shape)
+
+# print(annotations)
 
 # for idx, a in enumerate(aa):
 #     print(idx)
