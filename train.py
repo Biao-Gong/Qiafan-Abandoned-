@@ -114,7 +114,10 @@ def main(args=None):
 				optimizer.zero_grad()
 				
 				images = torch.cuda.FloatTensor(images.cuda())
-				targets
+				targets = torch.cuda.FloatTensor([list(map(float, data['annot']['annotation']['object']['bndbox']['xmin'])),
+                        list(map(float, data['annot']['annotation']['object']['bndbox']['ymin'])),
+                        list(map(float, data['annot']['annotation']['object']['bndbox']['xmax'])),
+                        list(map(float, data['annot']['annotation']['object']['bndbox']['ymax']))])
 				##################################################
 				##################################################
 				##################################################

@@ -3,24 +3,24 @@
 # import os
 # import sys
 # import json
-# import torch
-# import torch.nn as nn
-# import torch.optim as optim
-# import torch.utils.data as data
-# import torchvision
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torch.utils.data as data
+import torchvision
 # import time
 # import shutil
 # from tensorboardX import SummaryWriter
-# from data import guipang
-# import numpy as np
-# import pdb
+from data import guipang
+import numpy as np
+import pdb
 dataset_guipang = '/repository/gong/qiafan/guipangdata/'
 # config
 cfg = {
     'lr': 0.001,
     'momentum': 0.9,
     'weight_decay': 0.0005,
-    'batch_size': 4,
+    'batch_size': 5,
     'max_epoch': 250,
     'checkpoint': 100,
     'milestones': [60, 100],
@@ -31,8 +31,10 @@ cfg = {
     'ckpt_root': '/repository/gong/qiafan/'
 }
 
-coco_annotations= [{"segmentation": [[419.71,443.39,432.63,379.41,475.08,346.19,503.38,333.88,527.99,325.27,557.53,325.88,574.14,331.42,572.91,304.35,576.6,290.2,588.29,285.28,604.28,285.89,608.59,302.5,610.44,324.65,605.51,330.19,600.59,348.03,610.44,359.11,616.59,372.64,615.97,380.64,605.51,385.56,614.74,393.56,625.82,397.87,639.35,415.71,635.05,422.48,631.02,440.97,638.92,433.07,640.0,453.0,418.61,453.0],[338.86,451.49,344.39,390.69,339.65,372.53,354.65,353.58,356.23,337.78,357.02,319.62,353.87,306.2,353.87,293.56,359.39,285.67,363.34,263.56,338.07,253.29,330.18,257.24,326.23,259.61,315.17,250.13,304.91,250.13,303.33,259.61,313.59,262.77,295.43,282.51,274.9,313.3,264.64,319.62,259.11,340.94,257.53,356.73,256.74,364.63,259.9,382.79,241.74,391.48,227.53,404.9,219.63,417.54,229.1,420.69,218.84,437.28,218.84,453.0]],
- "area": 41612.6938,"iscrowd": 0,"image_id": 139099,"bbox": [218.84,250.13,421.16,202.87],"category_id": 4,"id": 148439}]
+coco_annotations = [{"segmentation": [[419.71, 443.39, 432.63, 379.41, 475.08, 346.19, 503.38, 333.88, 527.99, 325.27, 557.53, 325.88, 574.14, 331.42, 572.91, 304.35, 576.6, 290.2, 588.29, 285.28, 604.28, 285.89, 608.59, 302.5, 610.44, 324.65, 605.51, 330.19, 600.59, 348.03, 610.44, 359.11, 616.59, 372.64, 615.97, 380.64, 605.51, 385.56, 614.74, 393.56, 625.82, 397.87, 639.35, 415.71, 635.05, 422.48, 631.02, 440.97, 638.92, 433.07, 640.0, 453.0, 418.61, 453.0], [338.86, 451.49, 344.39, 390.69, 339.65, 372.53, 354.65, 353.58, 356.23, 337.78, 357.02, 319.62, 353.87, 306.2, 353.87, 293.56, 359.39, 285.67, 363.34, 263.56, 338.07, 253.29, 330.18, 257.24, 326.23, 259.61, 315.17, 250.13, 304.91, 250.13, 303.33, 259.61, 313.59, 262.77, 295.43, 282.51, 274.9, 313.3, 264.64, 319.62, 259.11, 340.94, 257.53, 356.73, 256.74, 364.63, 259.9, 382.79, 241.74, 391.48, 227.53, 404.9, 219.63, 417.54, 229.1, 420.69, 218.84, 437.28, 218.84, 453.0]],
+                     "area": 41612.6938, "iscrowd": 0, "image_id": 139099, "bbox": [218.84, 250.13, 421.16, 202.87], "category_id": 4, "id": 148439},
+                    {"segmentation": [[419.71, 443.39, 432.63, 379.41, 475.08, 346.19, 503.38, 333.88, 527.99, 325.27, 557.53, 325.88, 574.14, 331.42, 572.91, 304.35, 576.6, 290.2, 588.29, 285.28, 604.28, 285.89, 608.59, 302.5, 610.44, 324.65, 605.51, 330.19, 600.59, 348.03, 610.44, 359.11, 616.59, 372.64, 615.97, 380.64, 605.51, 385.56, 614.74, 393.56, 625.82, 397.87, 639.35, 415.71, 635.05, 422.48, 631.02, 440.97, 638.92, 433.07, 640.0, 453.0, 418.61, 453.0], [338.86, 451.49, 344.39, 390.69, 339.65, 372.53, 354.65, 353.58, 356.23, 337.78, 357.02, 319.62, 353.87, 306.2, 353.87, 293.56, 359.39, 285.67, 363.34, 263.56, 338.07, 253.29, 330.18, 257.24, 326.23, 259.61, 315.17, 250.13, 304.91, 250.13, 303.33, 259.61, 313.59, 262.77, 295.43, 282.51, 274.9, 313.3, 264.64, 319.62, 259.11, 340.94, 257.53, 356.73, 256.74, 364.63, 259.9, 382.79, 241.74, 391.48, 227.53, 404.9, 219.63, 417.54, 229.1, 420.69, 218.84, 437.28, 218.84, 453.0]],
+                     "area": 41612.6938, "iscrowd": 0, "image_id": 139099, "bbox": [218.84, 250.13, 421.16, 202.87], "category_id": 4, "id": 148449}]
 
 # print(len(coco_annotations[0]))
 
@@ -40,17 +42,25 @@ coco_annotations= [{"segmentation": [[419.71,443.39,432.63,379.41,475.08,346.19,
 # aa['1']=2
 # print(aa)
 
-nms=[]
-nms = [cat['name'] for cat in cats]
+# nms=[]
+# nms = [cat['name'] for cat in cats]
 
-# data_set = {
-#     x: guipang(cfg=cfg['dataset_guipang'], part=x) for x in ['train', 'val']
-# }
-# data_loader = {
-#     x: data.DataLoader(data_set[x], batch_size=cfg['batch_size'],
-#                         num_workers=4, shuffle=True, pin_memory=False)
-#     for x in ['train', 'val']
-# }
+data_set = {
+    x: guipang(cfg=cfg['dataset_guipang'], part=x) for x in ['train', 'val']
+}
+data_loader = {
+    x: data.DataLoader(data_set[x], batch_size=cfg['batch_size'],
+                       num_workers=4, shuffle=True, pin_memory=False)
+    for x in ['train', 'val']
+}
+
+for i, data in enumerate(data_loader['train']):
+    print(torch.tensor([list(map(float, data['annot']['annotation']['object']['bndbox']['xmin'])),
+                        list(map(float, data['annot']['annotation']['object']['bndbox']['ymin'])),
+                        list(map(float, data['annot']['annotation']['object']['bndbox']['xmax'])),
+                        list(map(float, data['annot']['annotation']['object']['bndbox']['ymax']))]))
+    pdb.set_trace()
+
 
 # annotations     = np.zeros((0, 5))
 # for idx, a in enumerate(coco_annotations):
@@ -71,6 +81,7 @@ nms = [cat['name'] for cat in cats]
 # print(annotations.shape)
 
 # print(annotations)
+
 
 # for idx, a in enumerate(aa):
 #     print(idx)
@@ -162,20 +173,20 @@ nms = [cat['name'] for cat in cats]
 # 	yA = max(boxA[1], boxB[1])
 # 	xB = min(boxA[2], boxB[2])
 # 	yB = min(boxA[3], boxB[3])
- 
+
 # 	# compute the area of intersection rectangle
 # 	interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
- 
+
 # 	# compute the area of both the prediction and ground-truth
 # 	# rectangles
 # 	boxAArea = (boxA[2] - boxA[0] + 1) * (boxA[3] - boxA[1] + 1)
 # 	boxBArea = (boxB[2] - boxB[0] + 1) * (boxB[3] - boxB[1] + 1)
- 
+
 # 	# compute the intersection over union by taking the intersection
 # 	# area and dividing it by the sum of prediction + ground-truth
 # 	# areas - the interesection area
 # 	iou = interArea / float(boxAArea + boxBArea - interArea)
- 
+
 # 	# return the intersection over union value
 # 	return iou
 
@@ -193,7 +204,7 @@ nms = [cat['name'] for cat in cats]
 
 #     boxAArea = (boxA[2] - boxA[0] + 1) * (boxA[3] - boxA[1] + 1)
 #     boxBArea = (boxB[2] - boxB[0] + 1) * (boxB[3] - boxB[1] + 1)
-    
+
 #     iou = interArea / float(boxAArea + boxBArea - interArea)
 
 #     return iou
@@ -222,7 +233,7 @@ nms = [cat['name'] for cat in cats]
 #     height = height1+height2-(endy-starty)
 
 #     if width <=0 or height <= 0:
-#         ratio = 0 # 重叠率为 0 
+#         ratio = 0 # 重叠率为 0
 #     else:
 #         Area = width*height # 两矩形相交面积
 #         Area1 = width1*height1
@@ -230,8 +241,6 @@ nms = [cat['name'] for cat in cats]
 #         ratio = Area*1./(Area1+Area2-Area)
 #     # return IOU
 #     return ratio,Reframe,GTframe
-
-
 
 
 # print(os.path.join(dataset_guipang,'train')
@@ -289,9 +298,6 @@ nms = [cat['name'] for cat in cats]
 #         pdb.set_trace()
 #     print(images)
 #     print(targets)
-
-
-
 
     # print(data_set[phrase].__getitem__(i))
     # print(cfg['batch_size'])
